@@ -26,7 +26,7 @@ class CTHeadAlignTest(unittest.TestCase):
             filename_base = filename_full.split('.')[0]
             aligned_filename = filename_base + '_aligned' + '.nii.gz'
             aligned_path = os.path.join(self.test_working_path, aligned_filename)
-            align(test_case_path, aligned_path)
+            align(test_case_path, aligned_path, debug=False)
 
 if __name__ == '__main__':
     unittest.main()
