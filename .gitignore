@@ -5,10 +5,10 @@
 .vscode
 
 # exclude everything
-working/*
+#working/*
 
 # exception to the rule
-working/.gitkeep
+#working/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
