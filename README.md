@@ -3,6 +3,8 @@ This code will align a CT head by identifying the cochleas and nasal bridge, and
 
 If you utilize this article in your research, please provide a citation. Publication is currently in process, so in the meantime e-mail me at jcramer10@gmail.com for more information.
 
+Similarly, I am a physician first, and welcome your feedack on this project and the code, again at jcramer10@gmail.com.
+
 ## Getting Started
 First, install the required libraries imported in the ct_head_align.py file. These include:
 * monai
