@@ -1,7 +1,7 @@
 # Landmark-Based CT Head Alignment
-This code will align a CT head by identifying the cochleas and nasal bridge. It uses a U-Net CNN so requires a GPU. 
+This code will align a CT head by identifying the cochleas and nasal bridge, and lining them up in all 3 planes. The cochleas are equalized between the y and z axes, and the nasal bridge is equalized with the right cochlea on the z axis. The alignment is similar to registration to the cantho-meatal line or AC-PC line (about 4 degrees counter-clockwise from AC-PC), with the added benefit that skull base structures are more precisely aligned and symmetric. It uses a U-Net CNN so requires a GPU. 
 
-Please cite the following article in any publications utilizing this code: TODO
+If you utilize this article in your research, please provide a citation. Publication is currently in process, so in the meantime e-mail me at jcramer10@gmail.com for more information.
 
 ## Getting Started
 First, install the required libraries imported in the ct_head_align.py file. These include:
