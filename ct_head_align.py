@@ -573,7 +573,7 @@ def pixels_to_standard_orientation(input_image):
     
     return converted_image
 
-def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), roi=(96,96,96), min_voxel_value=-1000, max_voxel_value=1000, num_labels=1, keep_only_largest=True, verbose=False):
+def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), roi=(96,96,96), min_voxel_value=None, max_voxel_value=None, num_labels=1, keep_only_largest=True, force_cpu=False, verbose=False):
     """ Same as predict_low_res but the prediction results are interpolated when resampled back to original image resolution.
     Results in a smoother and likely more accurate segmentation.
 
@@ -586,6 +586,7 @@ def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), r
         max_voxel_value (int): largest possible value of the provided image (need to specify to avoid outliers)        
         num_labels (int): Number of labels to predict
         keep_only_largest (bool): Whether to only keep the largest connected component of each label
+        force_cpu (bool): If true, forces use of CPU for prediction even if GPU is available.
         verbose (bool): Verbosity flag
 
     Returns:
@@ -601,6 +602,11 @@ def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), r
     y_spacing = spacing[1]
     z_spacing = spacing[2]
 
+    if min_voxel_value is None or max_voxel_value is None:
+        input_sitk_data = sitk.GetArrayFromImage(input_sitk)
+        min_voxel_value = np.min(input_sitk_data)
+        max_voxel_value = np.max(input_sitk_data)
+
     # Prepare the image for prediction
     resampled_sitk = resample_spacing(input_sitk, new_spacing=[x_spacing,y_spacing,z_spacing])
     resampled_data = sitk.GetArrayFromImage(resampled_sitk)
@@ -612,11 +618,32 @@ def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), r
     resampled_rescaled_data = resampled_rescaled_data.type(torch.FloatTensor)
 
     # Make the prediction
-    device = torch.device('cuda:0')
-    model = monai.networks.nets.UNet(dimensions=3, in_channels=1, out_channels=num_labels+1, channels=(16, 32, 64, 128, 256),
+    device = None
+    if torch.cuda.is_available() and not force_cpu:
+        # Get number of available GPUs
+        num_gpus = torch.cuda.device_count()
+        
+        # For simplicity, use the first GPU (you can have custom logic here)
+        # You can also set up multi-GPU training here if desired
+        selected_gpu = 0
+        if verbose:
+            if num_gpus > 1:
+                print(f"{num_gpus} GPUs available. Using GPU {selected_gpu}.")
+            else:
+                print("Using the available GPU.")
+        
+        device = torch.device(f"cuda:{selected_gpu}")
+    else:
+        # Fallback to CPU
+        if verbose:
+            print("No GPU available. Using CPU.")
+        device = torch.device("cpu")
+
+    model = monai.networks.nets.UNet(spatial_dims=3, in_channels=1, out_channels=num_labels+1, channels=(16, 32, 64, 128, 256),
                                     strides=(2, 2, 2, 2), num_res_units=2, norm=Norm.BATCH).to(device)                                  
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     sw_batch_size = 4
+
     predict_data = sliding_window_inference(resampled_rescaled_data.to(device), roi, sw_batch_size, model)
 
     # Prepare the image for output (convert to numpy, undo the initial transforms of transpose and resample)
@@ -624,7 +651,7 @@ def predict_low_res_interpolate(input_sitk, model_path, spacing=(1.5,1.5,1.5), r
     predict_data = predict_data[0,:,:,:]
     predict_data = np.transpose(predict_data, (2, 1, 0)) # Reverse transpose - basically convert back from RAS to sitk
     predict_data = predict_data.astype(np.float32)
-
+    
     predict_sitk = sitk.GetImageFromArray(predict_data)
     predict_sitk.CopyInformation(resampled_sitk)
     orig_spacing = input_sitk.GetSpacing()
